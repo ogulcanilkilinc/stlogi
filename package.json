@@ -1,0 +1,19 @@
+{
+  "name": "stlogi",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --open",
+    "build": "vite build",
+    "preview": "vite preview --open"
+  },
+  "dependencies": {
+    "three": "0.170.0",
+    "three-bvh-csg": "0.0.17",
+    "three-mesh-bvh": "0.8.3"
+  },
+  "devDependencies": {
+    "vite": "5.4.21"
+  }
+}

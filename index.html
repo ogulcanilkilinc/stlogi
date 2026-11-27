@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>STLOgi — Baskı Öncesi Görüntüleyici</title>
+  <link rel="stylesheet" href="/src/style.css" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <meta name="theme-color" content="#23272e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="STLOgi" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">STL<span>Ogi</span></div>
+    <button id="btnPanelL" class="mobileOnly" title="Nesneler ve konum paneli">☰ Nesneler</button>
+    <button id="btnPanelR" class="mobileOnly" title="Profil, tahmin, kesme ve diğer ayarlar">⚙ Ayarlar</button>
+    <button id="btnOpen" class="primary" title="Dosya aç (Ctrl+O)">📂 Aç</button>
+    <input id="fileInput" type="file" accept=".stl,.obj,.3mf" multiple hidden />
+    <button id="btnExport" title="Seçili (yoksa tümü) STL olarak kaydet">💾 STL Kaydet</button>
+    <button id="btn3mf" title="Tüm sahneyi 3MF olarak kaydet: konumlar ve AMS renkleri Bambu Studio'ya taşınır">📦 3MF Kaydet</button>
+    <button id="btnLib" title="Kaydettiğin modeller, notlar ve baskı geçmişi">📚 Kütüphane</button>
+    <span class="sep"></span>
+    <div class="group" id="modeGroup">
+      <button data-mode="select" class="active" title="Seç (Esc)">🖱 Seç</button>
+      <button data-mode="translate" title="Taşı (W)">✥ Taşı</button>
+      <button data-mode="rotate" title="Döndür (E)">⟳ Döndür</button>
+      <button data-mode="scale" title="Ölçekle (R)">⤢ Ölçekle</button>
+      <button data-mode="layflat" title="Tıkladığın yüzeyi tablaya yatır (F)">⬇ Yüzeye yatır</button>
+      <button data-mode="measure" title="İki noktaya tıklayarak ölç (M)">📏 Ölç</button>
+      <button data-mode="paint" title="Modelin üstüne boyayarak destek koy / koyma (B)">🖌 Destek boya</button>
+      <button data-mode="hole" title="Yüzeye tıklayıp delik aç (H)">🕳 Delik</button>
+      <button data-mode="text" id="btnModeText" title="Yazıyı tıkladığın yüzeye kabart / oy (sağdaki Ekle bölümünden ayarla)" hidden>🔤 Yazı</button>
+    </div>
+    <span class="sep"></span>
+    <div class="group" id="viewGroup">
+      <button data-view="iso" title="İzometrik (1)">İzo</button>
+      <button data-view="top" title="Üst (2)">Üst</button>
+      <button data-view="front" title="Ön (3)">Ön</button>
+      <button data-view="right" title="Sağ (4)">Sağ</button>
+      <button data-view="fit" title="Modele sığdır (5)">Sığdır</button>
+    </div>
+    <span class="sep"></span>
+    <button id="btnUndo" title="Geri al (Ctrl+Z)">↶</button>
+    <button id="btnRedo" title="Yinele (Ctrl+Y)">↷</button>
+    <button id="btnInstall" class="primary" hidden title="STLOgi'yi bilgisayara uygulama olarak yükle; STL dosyaları çift tıklamayla açılabilsin">⬇ Uygulamayı yükle</button>
+  </header>
+
+  <aside id="left" class="panel">
+    <section>
+      <h3>Nesneler</h3>
+      <ul id="objList"></ul>
+      <div class="row wrap">
+        <button id="btnDup" title="Kopyala (Ctrl+D)">Kopyala</button>
+        <button id="btnDel" title="Sil (Del)">Sil</button>
+        <button id="btnArrange" title="Tablaya otomatik diz; sığmazsa plakalara dağıtır (A)">Diz</button>
+        <button id="btnMerge" title="Seçilenleri tek nesne yap (Ctrl ile çoklu seç)">Birleştir</button>
+        <button id="btnSplit" title="Birbirine değmeyen parçalara ayır">Parçala</button>
+      </div>
+    </section>
+
+    <section id="slotSection" class="disabled">
+      <h3>AMS slotu <span id="slotBtns" class="slotbtns"></span></h3>
+      <div class="note" style="margin-top:0">Seçili nesne(ler)in basılacağı filament. Renkleri sağdaki “AMS renkleri”nden değiştir.</div>
+    </section>
+
+    <section id="xformSection" class="disabled">
+      <h3>Konum / Döndürme / Boyut</h3>
+      <div class="grid3">
+        <label>X<input type="number" id="posX" step="1" /></label>
+        <label>Y<input type="number" id="posY" step="1" /></label>
+        <label>Z<input type="number" id="posZ" step="1" disabled title="Nesne her zaman tablaya oturur" /></label>
+      </div>
+      <div class="sub">Döndürme (°)</div>
+      <div class="grid3">
+        <label>X<input type="number" id="rotX" step="5" /></label>
+        <label>Y<input type="number" id="rotY" step="5" /></label>
+        <label>Z<input type="number" id="rotZ" step="5" /></label>
+      </div>
+      <div class="row">
+        <button class="sm" data-rot="x">X +90°</button>
+        <button class="sm" data-rot="y">Y +90°</button>
+        <button class="sm" data-rot="z">Z +90°</button>
+      </div>
+      <div class="sub">Boyut (mm) <label class="inline"><input type="checkbox" id="uniform" checked /> oranı koru</label></div>
+      <div class="grid3">
+        <label>X<input type="number" id="sizeX" step="1" min="0.1" /></label>
+        <label>Y<input type="number" id="sizeY" step="1" min="0.1" /></label>
+        <label>Z<input type="number" id="sizeZ" step="1" min="0.1" /></label>
+      </div>
+      <div class="grid3">
+        <label>%X<input type="number" id="sclX" step="5" min="1" /></label>
+        <label>%Y<input type="number" id="sclY" step="5" min="1" /></label>
+        <label>%Z<input type="number" id="sclZ" step="5" min="1" /></label>
+      </div>
+      <div class="row wrap">
+        <button class="sm" data-mirror="x">Ayna X</button>
+        <button class="sm" data-mirror="y">Ayna Y</button>
+        <button class="sm" data-mirror="z">Ayna Z</button>
+        <button class="sm" id="btnCenter">Ortala</button>
+        <button class="sm" id="btnAutoOrient" title="En az destek gerektiren yönü bul">Otomatik yönlendir</button>
+        <button class="sm" id="btnReset">Sıfırla</button>
+      </div>
+    </section>
+
+    <section id="infoSection">
+      <h3>Model bilgisi</h3>
+      <div id="modelInfo" class="info">Model yok. Dosyayı pencereye sürükleyip bırakın.</div>
+    </section>
+  </aside>
+
+  <main id="viewport">
+    <div id="dropHint"><span class="desktopOnly">STL / OBJ / 3MF dosyalarını buraya bırakın</span><span class="mobileOnly">Dosya açmak için yukarıdaki 📂 Aç düğmesine dokun</span></div>
+    <div id="measureLayer"></div>
+    <div id="hud"></div>
+  </main>
+
+  <aside id="right" class="panel">
+    <section>
+      <h3>Baskı profili</h3>
+      <label class="block">Kullanım amacı
+        <select id="preset">
+          <option value="custom">Özel</option>
+          <option value="decor">Dekoratif / figür</option>
+          <option value="standard" selected>Standart</option>
+          <option value="functional">Fonksiyonel / sağlam parça</option>
+          <option value="draft">Hızlı taslak</option>
+          <option value="fine">İnce detay (minyatür)</option>
+        </select>
+      </label>
+      <div id="presetNote" class="note"></div>
+      <div class="grid2">
+        <label>Malzeme
+          <select id="material">
+            <option value="PLA">PLA</option>
+            <option value="PETG">PETG</option>
+            <option value="ABS">ABS</option>
+            <option value="ASA">ASA</option>
+            <option value="TPU">TPU</option>
+          </select>
+        </label>
+        <label>Katman (mm)
+          <select id="layerH">
+            <option>0.08</option><option>0.12</option><option>0.16</option>
+            <option selected>0.20</option><option>0.24</option><option>0.28</option>
+          </select>
+        </label>
+        <label>Duvar sayısı<input type="number" id="walls" min="1" max="10" value="2" /></label>
+        <label>Doluluk %<input type="number" id="infill" min="0" max="100" value="15" /></label>
+        <label>Fiyat (1 kg)
+          <span class="pair">
+            <input type="number" id="price" min="0" step="any" value="700" />
+            <select id="priceCur"><option value="TRY">₺</option><option value="USD">$</option><option value="EUR">€</option></select>
+          </span>
+        </label>
+        <label title="Gerçek süre / bu uygulamanın süresi. Baskı kaydı ekledikçe otomatik ayarlanır.">Süre katsayısı<input type="number" id="calib" min="0.2" max="5" step="0.01" value="1" /></label>
+        <label title="Gerçek filament / bu uygulamanın tahmini. Baskı kaydı ekledikçe otomatik ayarlanır.">Filament katsayısı<input type="number" id="gcalib" min="0.2" max="5" step="0.01" value="1" /></label>
+      </div>
+      <div id="fxNote" class="note"></div>
+    </section>
+
+    <section>
+      <h3>Destek</h3>
+      <label class="inline"><input type="checkbox" id="supOn" /> Destek önizlemesini göster</label>
+      <label class="inline"><input type="checkbox" id="ovhOn" checked /> Sarkan yüzeyleri kırmızı göster</label>
+      <div class="grid2">
+        <label title="Yataydan bu açıdan daha düz olan alt yüzeyler destek ister (Bambu varsayılanı 30°)">Eşik açısı (°)<input type="number" id="supAngle" min="5" max="85" value="30" /></label>
+        <label>Tip
+          <select id="supType">
+            <option value="tree">Ağaç (tree)</option>
+            <option value="normal">Normal (ızgara)</option>
+          </select>
+        </label>
+      </div>
+      <label class="inline"><input type="checkbox" id="supBedOnly" /> Sadece tabladan destek</label>
+      <div class="sub">Elle boyama</div>
+      <div class="row wrap">
+        <button class="sm" id="btnPaintOn" title="Modelin üstüne boya (B)">🖌 Boya</button>
+        <label class="inline"><input type="radio" name="paintKind" value="enf" checked /> Destek koy</label>
+        <label class="inline"><input type="radio" name="paintKind" value="blk" /> Destek koyma</label>
+      </div>
+      <label class="block">Fırça (mm)<input type="number" id="paintR" min="1" max="30" step="0.5" value="4" /></label>
+      <div class="row">
+        <button class="sm" id="btnPaintClear">Boyamayı temizle</button>
+        <span id="paintInfo" class="note"></span>
+      </div>
+      <div class="note">Macenta: destek koy · Camgöbeği: destek koyma. Boyama 3MF'ye üçgen bazında yazılır (Bambu'da destek açık olmalı). Nesneyi keser, birleştirir, parçalarsan ya da delik açarsan silinir.</div>
+    </section>
+
+    <section>
+      <h3>Tahmin</h3>
+      <div id="estimate" class="estimate">—</div>
+      <div class="note">Yaklaşık değerdir; kesin sonuç için Bambu Studio'da dilimleyin. “Süre katsayısı” ile kendi yazıcınıza göre ayarlayabilirsiniz.</div>
+    </section>
+
+    <section>
+      <h3>AMS renkleri</h3>
+      <div id="amsSlots" class="slots"></div>
+      <div class="note">Her nesneye soldaki panelden bir slot ata. Çok renkli bir model için önce <b>Parçala</b> ya da <b>Kes</b> ile parçalara ayır. Slot renkleri 3MF ile Bambu Studio'ya gider.</div>
+    </section>
+
+    <section>
+      <h3>Baskı kontrolü</h3>
+      <div id="checks" class="checks">—</div>
+    </section>
+
+    <section>
+      <h3>Kesme</h3>
+      <div class="grid2">
+        <label>Eksen
+          <select id="cutAxis">
+            <option value="z">Z (yatay kesit)</option>
+            <option value="x">X</option>
+            <option value="y">Y</option>
+          </select>
+        </label>
+        <label>Konum (mm)<input type="number" id="cutPos" step="0.5" /></label>
+      </div>
+      <input type="range" id="cutSlider" min="0" max="1000" value="500" />
+      <label class="inline"><input type="checkbox" id="cutFlip" checked /> Üst parçayı kesik yüzü tablaya gelecek şekilde çevir</label>
+      <div class="row">
+        <button id="btnCutPreview">Düzlemi göster</button>
+        <button id="btnCut" class="primary">✂ Kes</button>
+      </div>
+    </section>
+
+    <section>
+      <h3>Katman önizleme</h3>
+      <input type="range" id="layerSlider" min="0" max="1000" value="1000" />
+      <div id="layerInfo" class="note">Kaydırıcıyı sola çekerek modeli katman katman kesitte görün.</div>
+    </section>
+
+    <section>
+      <h3>Ekle</h3>
+      <div class="row wrap">
+        <button class="sm" data-prim="box">Küp</button>
+        <button class="sm" data-prim="cylinder">Silindir</button>
+        <button class="sm" data-prim="sphere">Küre</button>
+        <button class="sm" data-prim="cone">Koni</button>
+      </div>
+      <label class="block">Boyut (mm)<input type="number" id="primSize" min="1" max="250" value="20" /></label>
+      <div class="sub">Yazı (kabartma)</div>
+      <input type="text" id="txtVal" maxlength="60" placeholder="Örn. Ahmet" />
+      <div class="grid2">
+        <label>Yazı tipi<select id="txtFont"></select></label>
+        <label>Harf yüksekliği<input type="number" id="txtH" min="3" max="80" value="10" /></label>
+        <label>Kalınlık / derinlik<input type="number" id="txtT" min="0.4" max="20" step="0.2" value="1.6" /></label>
+        <label>Nereye
+          <select id="txtTarget">
+            <option value="obj">Ayrı nesne</option>
+            <option value="emboss">Modele kabart</option>
+            <option value="engrave">Modele oy</option>
+          </select>
+        </label>
+        <label class="inline"><input type="checkbox" id="txtBase" checked /> Altlık plaka</label>
+      </div>
+      <div class="row"><button class="sm" id="btnText">Yazı ekle</button></div>
+      <div class="note">“Modele kabart/oy” seçersen düğmeye bastıktan sonra modelin yüzeyine tıkla. Düz ya da hafif eğri yüzeylerde en iyi sonucu verir.</div>
+      <div class="sub">Delik</div>
+      <div class="grid2">
+        <label>Çap (mm)<input type="number" id="holeD" min="0.5" max="100" step="0.5" value="4" /></label>
+        <label title="0 = boydan boya">Derinlik (mm)<input type="number" id="holeDepth" min="0" max="250" step="0.5" value="0" /></label>
+      </div>
+      <div class="note">Üstteki <b>🕳 Delik</b> düğmesine bas, modelin yüzeyine tıkla (H).</div>
+    </section>
+
+    <section>
+      <h3>Baskı kaydı / kalibrasyon</h3>
+      <div class="note" style="margin-top:0">Bir şeyi bastıktan sonra gerçek süre ve gramı gir; tahminler kendi yazıcına göre ayarlansın. Kayıt, şu an sahnede görünen modelin tahminiyle eşlenir.</div>
+      <div class="grid2">
+        <label>Gerçek süre (dk)<input type="number" id="prRealMin" min="1" step="1" /></label>
+        <label>Gerçek filament (g)<input type="number" id="prRealG" min="0.1" step="0.1" /></label>
+      </div>
+      <label class="inline"><input type="checkbox" id="prOk" checked /> Baskı başarılı (kalibrasyona dahil)</label>
+      <input type="text" id="prNote" placeholder="Not (isteğe bağlı)" />
+      <div class="row"><button class="sm" id="btnPrint">Kaydı ekle</button></div>
+      <div id="calibInfo" class="note"></div>
+      <ul id="printList" class="plist"></ul>
+    </section>
+  </aside>
+
+  <footer id="status">
+    <span id="statusText">Hazır.</span>
+    <span class="right desktopOnly">Bambu Lab A1 · 256×256×256 mm · Sol tık: döndür · Sağ tık: kaydır · Tekerlek: yakınlaştır</span>
+    <span class="right mobileOnly">1 parmak: döndür · 2 parmak: kaydır / yakınlaştır</span>
+  </footer>
+
+  <div id="libModal" hidden>
+    <div class="libbox">
+      <div class="libhead">
+        <h3 style="margin:0">Model kütüphanesi</h3>
+        <input type="text" id="libSearch" placeholder="Ara…" />
+        <button id="libSave" class="primary" title="Şu anki sahneyi kütüphaneye kaydet">+ Sahneyi kaydet</button>
+        <button id="libClose">✕</button>
+      </div>
+      <div id="libList" class="liblist"></div>
+      <div class="note">Modeller yalnızca bu tarayıcıda (bu bilgisayarda) saklanır. Tarayıcı verisini silersen kütüphane de silinir; önemli dosyaların orijinalini sakla.</div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
